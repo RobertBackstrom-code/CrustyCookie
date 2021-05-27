@@ -111,7 +111,7 @@ public class Database {
 	public String getPallets(Request req, Response res) {
 
 		String sqlQuery = "SELECT Pallets.pallet_id AS id, Cookies.cookie_name AS cookie, Pallets.production_date, " +
-				"Orders.customer_name AS customer, Pallets.is_blocked AS blocked " +
+				"Orders.customer_name AS customer, Pallets.is_blocked, IF(is_blocked, 'yes', 'no') AS blocked " +
 				"FROM Pallets " +
 				"LEFT JOIN Cookies " +
 				"ON Cookies.cookie_id = Pallets.cookie_id " +
@@ -149,13 +149,21 @@ public class Database {
 			filterValues.add(req.queryParams("cookie"));
 		}
 
+		System.out.println(req.queryParams("blocked"));
+
 		if (req.queryParams("blocked") != null) {
 			if(querySize == sb.toString().length()) {
 				sb.append("WHERE is_blocked = ? ");
 			} else {
 				sb.append("AND is_blocked = ? ");
 			}
-			filterValues.add(req.queryParams("blocked"));
+
+			if(req.queryParams("blocked").toLowerCase().equals("yes")) {
+				filterValues.add("true");
+			} else {
+				filterValues.add("false");
+			}
+
 		}
 
 		String json = "";
@@ -165,12 +173,22 @@ public class Database {
 
 		try(PreparedStatement statement = conn.prepareStatement(sqlQuery)) {
 			for (int i = 0; i < filterValues.size(); i++) {
-				statement.setString(i+1, filterValues.get(i));
+				System.out.println("Filtervalue" + i + ": " + filterValues.get(i));
+				if(filterValues.get(i).equals("false") ){
+					statement.setBoolean(i+1, false);
+				} else if(filterValues.get(i).equals("true")) {
+					statement.setBoolean(i+1, true);
+				}else {
+					statement.setString(i+1, filterValues.get(i));
+				}
+
 			}
-			System.out.println(sqlQuery);
+			System.out.println( "Query: " + sqlQuery);
+			System.out.println( "Statement: " + statement.toString());
 			ResultSet rs = statement.executeQuery();
+
 			json = Jsonizer.toJson(rs, "pallets");
-			//System.out.println(json);
+			System.out.println("json string: " + json);
 			return json;
 		} catch (SQLException e) {
 			e.printStackTrace();
